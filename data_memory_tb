@@ -1,0 +1,113 @@
+`timescale 1ns/1ps
+
+module data_memory_tb;
+
+
+    reg clk;
+    reg WE_dmem;
+    reg [15:0] reg_out;
+    reg [15:0] alu_out;
+    wire [15:0] mem_out;
+
+    data_memory uut (
+        .clk(clk),
+        .WE_dmem(WE_dmem),
+        .reg_out(reg_out),
+        .alu_out(alu_out),
+        .mem_out(mem_out)
+    );
+
+    initial clk = 0;
+    always #5 clk = ~clk;
+
+
+    task check_mem_cell;
+        input [15:0] addr;
+        input [15:0] expected;
+        begin
+            if (uut.memory[addr] !== expected) begin
+                $display("[FAIL] MEM[%0h] expected %h, got %h",
+                         addr, expected, uut.memory[addr]);
+            end else begin
+                $display("[PASS] MEM[%0h] = %h", addr, uut.memory[addr]);
+            end
+        end
+    endtask
+
+
+    initial begin
+        $display("Starting RiSC-16 Data Memory Testbench...");
+
+        WE_dmem = 0;
+        reg_out = 16'h0000;
+        alu_out = 16'h0000;
+      
+        @(posedge clk); 
+        @(posedge clk);
+
+        $display("\n[TEST 1] Initial contents should be zero (sample addresses).");
+        check_mem_cell(16'h0000, 16'h0000);
+        check_mem_cell(16'h0001, 16'h0000);
+        check_mem_cell(16'h0010, 16'h0000);
+        check_mem_cell(16'h00FF, 16'h0000);
+
+       
+        //SW to address 0x0010, then LW from 0x0010
+        $display("\n[TEST 2] Store 0xABCD to MEM[0x0010], then load it back.");
+
+        alu_out = 16'h0010;  
+        reg_out = 16'hABCD;   
+        WE_dmem = 1;
+        @(posedge clk);   
+        WE_dmem = 0;    
+
+        check_mem_cell(16'h0010, 16'hABCD);
+
+        alu_out = 16'h0010;
+        #1;
+        if (mem_out === 16'hABCD)
+            $display("[PASS] mem_out = %h for addr 0x0010", mem_out);
+        else
+            $display("[FAIL] mem_out = %h, expected 0xABCD", mem_out);
+
+
+        //SW to another address (0x00FF), then LW
+        $display("\n[TEST 3] Store 0xBEEF to MEM[0x00FF], then load it back.");
+
+        alu_out = 16'h00FF;
+        reg_out = 16'hBEEF;
+        WE_dmem = 1;
+        @(posedge clk);
+        WE_dmem = 0;
+
+        check_mem_cell(16'h00FF, 16'hBEEF);
+
+        alu_out = 16'h00FF;
+        #1;
+        if (mem_out === 16'hBEEF)
+            $display("[PASS] mem_out = %h for addr 0x00FF", mem_out);
+        else
+            $display("[FAIL] mem_out = %h, expected 0xBEEF", mem_out);
+
+
+        //Write enable = 0 
+        $display("\n[TEST 4] WE_dmem=0 should prevent writes.");
+
+        alu_out = 16'h0010;
+        reg_out = 16'h1234;
+
+        check_mem_cell(16'h0010, 16'hABCD);
+        alu_out = 16'h0010;
+        #1;
+        if (mem_out === 16'hABCD)
+            $display("[PASS] mem_out still = %h (no write when WE_dmem=0)", mem_out);
+        else
+            $display("[FAIL] mem_out = %h, expected 0xABCD", mem_out);
+
+
+        $display("\nAll tests completed.");
+        #20;
+        $finish;
+    end
+
+endmodule
