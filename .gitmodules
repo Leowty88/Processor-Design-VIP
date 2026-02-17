@@ -1,3 +1,6 @@
 [submodule "onboarding-lab-2"]
 	path = onboarding-lab-2
 	url = https://github.com/Leowty88/onboarding-lab-2.git
+[submodule "onboarding-lab-3"]
+	path = onboarding-lab-3
+	url = https://github.com/Leowty88/onboarding-lab-3.git
